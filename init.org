@@ -33,9 +33,10 @@
    import pandas as pd
    import numpy as np
 
+   LOCAL_DATA_PATH = "./dataset/"
    train_data_csv = pd.read_csv(os.path.join(LOCAL_DATA_PATH, "train.csv"))
 
-   from sklearn.preprocessing import LabelEncoder
+   from sklearn.preprocessing import LabelEncoder, LabelBinarizer, StandardScaler
    #+END_SRC
 
    #+RESULTS:
@@ -131,15 +132,19 @@
   - Preprocessed
     #+BEGIN_SRC python :results output :session init :tangle yes
     preprocessed_data = train_data_csv
+    transformations = []
     #+END_SRC
 
     #+RESULTS:
 ** Remove Unnecessary Columns
    - Name, Ticket
      #+BEGIN_SRC python :results output :session init :tangle yes
-     preprocessed_data = preprocessed_data.drop("Name", axis=1)
-     preprocessed_data = preprocessed_data.drop("Ticket", axis=1)
-     print(preprocessed_data.head())
+     def remove_columns(data):
+       data = data.drop("Name", axis=1)
+       data = data.drop("Ticket", axis=1)
+       return data
+     print((remove_columns(preprocessed_data.copy())).head())
+     transformations.append(remove_columns)
      #+END_SRC
 
      #+RESULTS:
@@ -182,23 +187,67 @@
        #+end_example
      - Fill ~X~
        #+BEGIN_SRC python :results output :session init :tangle yes
-       preprocessed_data['Cabin'] = preprocessed_data['Cabin'].fillna("X")
-       print(preprocessed_data.head(3))
+       def add_missing_cabin(data):
+         data['Cabin'] = data['Cabin'].fillna("X")
+         return data
+       print(add_missing_cabin(preprocessed_data.copy()).info())
+       transformations.append(add_missing_cabin)
        #+END_SRC
 
        #+RESULTS:
-       : PassengerId  Survived  Pclass     Sex   Age  SibSp  Parch     Fare Cabin Embarked
-       : 0            1         0       3    male  22.0      1      0   7.2500     X        S
-       : 1            2         1       1  female  38.0      1      0  71.2833   C85        C
-       : 2            3         1       3  female  26.0      0      0   7.9250     X        S
+       #+begin_example
+       <class 'pandas.core.frame.DataFrame'>
+       RangeIndex: 891 entries, 0 to 890
+       Data columns (total 12 columns):
+       PassengerId    891 non-null int64
+       Survived       891 non-null int64
+       Pclass         891 non-null int64
+       Name           891 non-null object
+       Sex            891 non-null object
+       Age            714 non-null float64
+       SibSp          891 non-null int64
+       Parch          891 non-null int64
+       Ticket         891 non-null object
+       Fare           891 non-null float64
+       Cabin          891 non-null object
+       Embarked       889 non-null object
+       dtypes: float64(2), int64(5), object(5)
+       memory usage: 83.6+ KB
+       None
+       #+end_example
    - Age
      #+BEGIN_SRC python :results output :session init :tangle yes
-     preprocessed_data["Age"] = preprocessed_data["Age"].fillna(preprocessed_data["Age"].median())
+     def add_missing_age(data):
+       data["Age"] = data["Age"].fillna(preprocessed_data["Age"].median())
+       return data
+     print(add_missing_age(preprocessed_data.copy()).info())
+     transformations.append(add_missing_age)
      #+END_SRC
 
      #+RESULTS:
+     #+begin_example
+     <class 'pandas.core.frame.DataFrame'>
+     RangeIndex: 891 entries, 0 to 890
+     Data columns (total 12 columns):
+     PassengerId    891 non-null int64
+     Survived       891 non-null int64
+     Pclass         891 non-null int64
+     Name           891 non-null object
+     Sex            891 non-null object
+     Age            891 non-null float64
+     SibSp          891 non-null int64
+     Parch          891 non-null int64
+     Ticket         891 non-null object
+     Fare           891 non-null float64
+     Cabin          204 non-null object
+     Embarked       889 non-null object
+     dtypes: float64(2), int64(5), object(5)
+     memory usage: 83.6+ KB
+     None
+     #+end_example
 
 ** Ranges for Age
+   - may get similar results by scaling - not adding to the pipeline for now
    #+BEGIN_SRC python :results output :session init :tangle yes
    preprocessed_data["Age"] = np.floor(preprocessed_data['Age'] / 10)
    print(preprocessed_data["Age"].value_counts())
@@ -206,7 +255,7 @@
 
    #+RESULTS:
    #+begin_example
-   2.0    397
+   2.0    220
    3.0    167
    1.0    102
    4.0     89
@@ -218,19 +267,156 @@
    Name: Age, dtype: int64
    #+end_example
 
+** Cabin Code
+   - Use first character of the cabin number as cabin code:
+     #+BEGIN_SRC python :results output :session init :tangle yes
+     def cabin_code(data):
+       data.Cabin = data.Cabin.str.slice(0, 1)
+       return data
+     print(cabin_code(preprocessed_data.copy()).Cabin.value_counts())
+     transformations.append(cabin_code)
+     #+END_SRC
+
+     #+RESULTS:
+     : C    59
+     : B    47
+     : D    33
+     : E    32
+     : A    15
+     : F    13
+     : G     4
+     : T     1
+     : Name: Cabin, dtype: int64
+
 ** Encoding
-    - Sex
+    - Sex, not using 1-hot encoding since just 2 values
       #+BEGIN_SRC python :results output :session init :tangle yes
-      sex_encoder = LabelEncoder()
-      preprocessed_data["Sex"] = sex_encoder.fit_transform(preprocessed_data["Sex"])
-      print(sex_encoder.classes_)
+      def encode_sex(data):
+        sex_encoder = LabelEncoder()
+        data["Sex"] = sex_encoder.fit_transform(data["Sex"])
+        return data
+      print(encode_sex(preprocessed_data.copy())["Sex"][:5])
+      transformations.append(encode_sex)
       #+END_SRC
 
       #+RESULTS:
-      : [0 1]
+      : 0    1
+      : 1    0
+      : 2    0
+      : 3    0
+      : 4    1
+      : Name: Sex, dtype: int64
 
-* Feature Engineering
-  - Cabin
+    - Cabin, use 1-hot encoding
+      #+BEGIN_SRC python :results output :session init :tangle yes
+      def encode_cabin(data):
+        cabin_encoder = LabelBinarizer()
+        data["Cabin"] = cabin_encoder.fit_transform(data["Cabin"])
+        return data
+      transformations.append(encode_cabin)
+      data = preprocessed_data.copy()
+
+      #for fun in transformations:
+      #  data = fun(data)
+      print(data.info())
+      #print(data["Cabin"][:10])
+      #+END_SRC
+
+      #+RESULTS:
+      #+begin_example
+      <class 'pandas.core.frame.DataFrame'>
+      RangeIndex: 891 entries, 0 to 890
+      Data columns (total 12 columns):
+      PassengerId    891 non-null int64
+      Survived       891 non-null int64
+      Pclass         891 non-null int64
+      Name           891 non-null object
+      Sex            891 non-null object
+      Age            714 non-null float64
+      SibSp          891 non-null int64
+      Parch          891 non-null int64
+      Ticket         891 non-null object
+      Fare           891 non-null float64
+      Cabin          204 non-null object
+      Embarked       889 non-null object
+      dtypes: float64(2), int64(5), object(5)
+      memory usage: 83.6+ KB
+      None
+      #+end_example
+
+** TODO Scaling
+   - Fare, using standardization because it is less affected by outliers
+     #+BEGIN_SRC python :results output :session init :tangle yes
+     fare_scaler = StandardScaler()
+     fare_scaler.fit_transform(preprocessed_data)
+     #+END_SRC
+
+     #+RESULTS:
+
+* Correlations
+  - since original data is not huge, do on all
     #+BEGIN_SRC python :results output :session init :tangle yes
-    train_data_csv.info()
+    corr_matrix = train_data_csv.corr()
+    print(corr_matrix["Survived"].sort_values(ascending=False))
+    #+END_SRC
+
+    #+RESULTS:
+    : Survived       1.000000
+    : Fare           0.257307
+    : Parch          0.081629
+    : PassengerId   -0.005007
+    : SibSp         -0.035322
+    : Age           -0.077221
+    : Pclass        -0.338481
+    : Name: Survived, dtype: float64
+
+  - on preprocessed data:
+    #+BEGIN_SRC python :results output :session init :tangle yes
+    pre_corr_matrix = preprocessed_data.corr()
+    print(pre_corr_matrix["Survived"].sort_values(ascending=False))
+    #+END_SRC
+
+    #+RESULTS:
+    #+begin_example
+    Survived       1.000000
+    Fare           0.257307
+    Parch          0.081629
+    Cabin          0.022287
+    PassengerId   -0.005007
+    SibSp         -0.035322
+    Age           -0.050972
+    Pclass        -0.338481
+    Sex           -0.543351
+    Name: Survived, dtype: float64
+    #+end_example
+
+* Train
+** Load Train Data
+   #+BEGIN_SRC python :results value :session init :tangle yes
+   test_data_csv = pd.read_csv(os.path.join(LOCAL_DATA_PATH, "test.csv"))
+   #+END_SRC
+
+   #+RESULTS:
+
+** Create Sets
+    #+BEGIN_SRC python :results output :session init :tangle yes
+    survived_label = preprocessed_data["Survived"].copy()
+    feature_list = preprocessed_data.drop("Survived", axis=1)
+    print(survived_label.head(3))
+    print(feature_list.head(3))
+    #+END_SRC
+
+    #+RESULTS:
+    : 0    0
+    : 1    1
+    : 2    1
+    : Name: Survived, dtype: int64
+    :    PassengerId  Pclass  Sex  Age  SibSp  Parch     Fare  Cabin Embarked
+    : 0            1       3    1  2.0      1      0   7.2500      0        S
+    : 1            2       1    0  3.0      1      0  71.2833      0        C
+    : 2            3       3    0  2.0      0      0   7.9250      0        S
+
+** Decision Tree
+    #+BEGIN_SRC python :results output :session init :tangle yes
+    preprocessed_data = train_data_csv
     #+END_SRC

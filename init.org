@@ -366,15 +366,6 @@
       None
       #+end_example
 
-** TODO Scaling
-   - Fare, using standardization because it is less affected by outliers
-     #+BEGIN_SRC python :results output :session init :tangle yes
-     fare_scaler = StandardScaler()
-     fare_scaler.fit_transform(preprocessed_data)
-     #+END_SRC
-
-     #+RESULTS:
-
 ** Apply Transformations
    - apply
      #+BEGIN_SRC python :results output :session init :tangle yes
@@ -545,3 +536,30 @@
 
      #+RESULTS:
      : 0.42358687104367876
+
+* Feature Scaling
+  - Fare, using standardization because it is less affected by outliers
+    #+BEGIN_SRC python :results output :session init :tangle yes
+    scaler = StandardScaler()
+    scaled_feature_list = scaler.fit_transform(feature_list)
+    scaled_test_data = scaler.fit_transform(test_data)
+
+    decision_tree_clf = DecisionTreeClassifier()
+    decision_tree_clf.fit(scaled_feature_list, survived_label)
+
+    survived_predictions = decision_tree_clf.predict(scaled_test_data)
+    tree_mse = mean_squared_error(test_label, survived_predictions)
+    tree_rmse = np.sqrt(tree_mse)
+    print(tree_rmse)
+    #+END_SRC
+
+    #+RESULTS:
+    : /home/anurag/.local/lib/python3.6/site-packages/sklearn/preprocessing/data.py:625: DataConversionWarning: Data with input dtype int64, float64 were all converted to float64 by StandardScaler.
+    :   return self.partial_fit(X, y)
+    : /home/anurag/.local/lib/python3.6/site-packages/sklearn/base.py:462: DataConversionWarning: Data with input dtype int64, float64 were all converted to float64 by StandardScaler.
+    :   return self.fit(X, **fit_params).transform(X)
+    : /home/anurag/.local/lib/python3.6/site-packages/sklearn/preprocessing/data.py:625: DataConversionWarning: Data with input dtype int64, float64 were all converted to float64 by StandardScaler.
+    :   return self.partial_fit(X, y)
+    : /home/anurag/.local/lib/python3.6/site-packages/sklearn/base.py:462: DataConversionWarning: Data with input dtype int64, float64 were all converted to float64 by StandardScaler.
+    :   return self.fit(X, **fit_params).transform(X)
+    : 0.517631706652575

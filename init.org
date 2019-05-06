@@ -1,8 +1,9 @@
 #+TITLE: [[https://www.kaggle.com/c/titanic/overview][Titanic]]
+#+PROPERTY: header-args :results output :cache yes :tangle yes :session pysess :export both :eval query-export
 
 * Get the Data
   - Def
-    #+BEGIN_SRC python :results output :session init :tangle yes :export code
+    #+BEGIN_SRC python
     import os
     import subprocess
 
@@ -19,12 +20,17 @@
     os.chdir(project_root)
     #+END_SRC
 
-    #+RESULTS:
+    #+RESULTS[40d5f4bb53b1fcaa94c799fade68195033710e95]:
+    : /home/anurag/code/titanic-kaggle
+    : train.csv: Skipping, found more recently modified local copy (use --force to force download)
+    : test.csv: Skipping, found more recently modified local copy (use --force to force download)
+    : gender_submission.csv: Skipping, found more recently modified local copy (use --force to force download)
 
 * Load Libraries and Data
-   #+BEGIN_SRC python :results value :session init :tangle yes
+   #+BEGIN_SRC python :cache no
    import pandas as pd
    import numpy as np
+   import os
 
    LOCAL_DATA_PATH = "./dataset/"
    train_data_csv = pd.read_csv(os.path.join(LOCAL_DATA_PATH, "train.csv"))
@@ -36,15 +42,15 @@
 
 * Peek Data
   - head
-    #+BEGIN_SRC python :results value :session init :tangle yes
+    #+BEGIN_SRC python
     pd.set_option('display.max_columns', None)
     pd.set_option('display.width', 200)
-    train_data_csv.head(10)
+    print(train_data_csv.head(10))
     #+END_SRC
 
-    #+RESULTS:
+    #+RESULTS[44e8f095112a35d28a250cf38398a617ef787b0f]:
     #+begin_example
-       PassengerId  Survived  Pclass                                               Name     Sex   Age  SibSp  Parch            Ticket     Fare Cabin Embarked
+    PassengerId  Survived  Pclass                                               Name     Sex   Age  SibSp  Parch            Ticket     Fare Cabin Embarked
     0            1         0       3                            Braund, Mr. Owen Harris    male  22.0      1      0         A/5 21171   7.2500   NaN        S
     1            2         1       1  Cumings, Mrs. John Bradley (Florence Briggs Th...  female  38.0      1      0          PC 17599  71.2833   C85        C
     2            3         1       3                             Heikkinen, Miss. Laina  female  26.0      0      0  STON/O2. 3101282   7.9250   NaN        S
@@ -58,11 +64,11 @@
     #+end_example
 
   - info
-    #+BEGIN_SRC python :results output :session init :tangle yes
+    #+BEGIN_SRC python
     train_data_csv.info()
     #+END_SRC
 
-    #+RESULTS:
+    #+RESULTS[6e85a802914d2261779d107943f83a6f5df8615f]:
     #+begin_example
     <class 'pandas.core.frame.DataFrame'>
     RangeIndex: 891 entries, 0 to 890
@@ -85,32 +91,32 @@
 
   - Interesting Columns
     - Sex
-      #+BEGIN_SRC python :results output :session init :tangle yes
+      #+BEGIN_SRC python
       train_data_csv['Sex'].value_counts()
       #+END_SRC
 
-      #+RESULTS:
+      #+RESULTS[866c61c40c0323ea993645a1a58ae76a392b292e]:
       : male      577
       : female    314
       : Name: Sex, dtype: int64
 
     - Pclass
-      #+BEGIN_SRC python :results output :session init :tangle yes
+      #+BEGIN_SRC python
       train_data_csv['Pclass'].value_counts()
       #+END_SRC
 
-      #+RESULTS:
+      #+RESULTS[f7fb0b9f54e951795a4f955be94fcafd4c02f81c]:
       : 3    491
       : 1    216
       : 2    184
       : Name: Pclass, dtype: int64
 
   - Describe
-    #+BEGIN_SRC python :results output :session init :tangle yes
+    #+BEGIN_SRC python
     train_data_csv.describe()
     #+END_SRC
 
-    #+RESULTS:
+    #+RESULTS[2ec37c1cbe9d5f087bfdc0fab0dbcf149eb4d5cd]:
     : PassengerId    Survived      Pclass         Age       SibSp       Parch        Fare
     : count   891.000000  891.000000  891.000000  714.000000  891.000000  891.000000  891.000000
     : mean    446.000000    0.383838    2.308642   29.699118    0.523008    0.381594   32.204208
@@ -122,33 +128,37 @@
     : max     891.000000    1.000000    3.000000   80.000000    8.000000    6.000000  512.329200
 
 * Preprocessing
-  - Preprocessed
-    #+BEGIN_SRC python :results output :session init :tangle yes
+  - Preprocess
+    #+BEGIN_SRC python :cache no
     preprocessed_data = train_data_csv
-    transformations = []
+    transformations = {}
     #+END_SRC
 
-    #+RESULTS:
+    #+RESULTS[61a27acb3cd20a06a4baa493f214032d22bb2dfb]:
+
 ** Remove Unnecessary Columns
    - Name, Ticket, PassengerId, Embarked
-     #+BEGIN_SRC python :results output :session init :tangle yes
+     #+BEGIN_SRC python :cache no
      def remove_columns(data):
        data = data.drop("Name", axis=1)
        data = data.drop("Ticket", axis=1)
        data = data.drop("PassengerId", axis=1)
        data = data.drop("Embarked", axis=1)
+       data = data.drop("SibSp", axis=1)
+       data = data.drop("Cabin", axis=1)
+       data = data.drop("Parch", axis=1)
        return data
      print((remove_columns(train_data_csv.copy())).head())
-     transformations.append(remove_columns)
+     transformations["remove columns"] = remove_columns
      #+END_SRC
 
      #+RESULTS:
-     : Survived  Pclass     Sex   Age  SibSp  Parch     Fare Cabin
-     : 0         0       3    male  22.0      1      0   7.2500   NaN
-     : 1         1       1  female  38.0      1      0  71.2833   C85
-     : 2         1       3  female  26.0      0      0   7.9250   NaN
-     : 3         1       1  female  35.0      1      0  53.1000  C123
-     : 4         0       3    male  35.0      0      0   8.0500   NaN
+     : Survived  Pclass     Sex   Age     Fare
+     : 0         0       3    male  22.0   7.2500
+     : 1         1       1  female  38.0  71.2833
+     : 2         1       3  female  26.0   7.9250
+     : 3         1       1  female  35.0  53.1000
+     : 4         0       3    male  35.0   8.0500
 
 ** Missing Values
    - Cabin
@@ -180,13 +190,13 @@
        C123           1
        Name: Cabin, dtype: int64
        #+end_example
-     - Fill ~X~
+     - Fill ~X~: removing from pipeline since corelation with cabin is not significant
        #+BEGIN_SRC python :results output :session init :tangle yes
        def add_missing_cabin(data):
          data['Cabin'] = data['Cabin'].fillna("X")
          return data
-       print(add_missing_cabin(preprocessed_data.copy()).info())
-       transformations.append(add_missing_cabin)
+       #print(add_missing_cabin(preprocessed_data.copy()).info())
+       #transformations.append(add_missing_cabin)
        #+END_SRC
 
        #+RESULTS:
@@ -211,12 +221,12 @@
        None
        #+end_example
    - Age
-     #+BEGIN_SRC python :results output :session init :tangle yes
+     #+BEGIN_SRC python :cache no
      def add_missing_age(data):
        data["Age"] = data["Age"].fillna(data["Age"].median())
        return data
      print(add_missing_age(train_data_csv.copy()).info())
-     transformations.append(add_missing_age)
+     transformations["add missing age"] = add_missing_age
      #+END_SRC
 
      #+RESULTS:
@@ -235,18 +245,18 @@
      Ticket         891 non-null object
      Fare           891 non-null float64
      Cabin          204 non-null object
-     Embarked       891 non-null object
+     Embarked       889 non-null object
      dtypes: float64(2), int64(5), object(5)
      memory usage: 83.6+ KB
      None
      #+end_example
    - Fare
-     #+BEGIN_SRC python :results output :session init :tangle yes
+     #+BEGIN_SRC python :cache no
      def add_missing_fare(data):
        data["Fare"] = data["Fare"].fillna(data["Fare"].median())
        return data
      print(add_missing_fare(train_data_csv.copy()).info())
-     transformations.append(add_missing_fare)
+     transformations["Add missing fare"] = add_missing_fare
      #+END_SRC
 
      #+RESULTS:
@@ -265,7 +275,7 @@
      Ticket         891 non-null object
      Fare           891 non-null float64
      Cabin          204 non-null object
-     Embarked       891 non-null object
+     Embarked       889 non-null object
      dtypes: float64(2), int64(5), object(5)
      memory usage: 83.6+ KB
      None
@@ -293,13 +303,14 @@
    #+end_example
 
 ** Cabin Code
+   - removing from pipeline because corelation is not significant
    - Use first character of the cabin number as cabin code:
      #+BEGIN_SRC python :results output :session init :tangle yes
      def cabin_code(data):
        data.Cabin = data.Cabin.str.slice(0, 1)
        return data
-     print(cabin_code(preprocessed_data.copy()).Cabin.value_counts())
-     transformations.append(cabin_code)
+     #print(cabin_code(preprocessed_data.copy()).Cabin.value_counts())
+     #transformations.append(cabin_code)
      #+END_SRC
 
      #+RESULTS:
@@ -315,13 +326,13 @@
 
 ** Encoding
     - Sex, not using 1-hot encoding since just 2 values
-      #+BEGIN_SRC python :results output :session init :tangle yes
+      #+BEGIN_SRC python :cache no
       def encode_sex(data):
         sex_encoder = LabelEncoder()
         data["Sex"] = sex_encoder.fit_transform(data["Sex"])
         return data
       print(encode_sex(preprocessed_data.copy())["Sex"][:5])
-      transformations.append(encode_sex)
+      transformations["encode sex"] = encode_sex
       #+END_SRC
 
       #+RESULTS:
@@ -332,13 +343,13 @@
       : 4    1
       : Name: Sex, dtype: int64
 
-    - Cabin, use 1-hot encoding
+    - Cabin, use 1-hot encoding: removing from pipeline because corelation is not significant
       #+BEGIN_SRC python :results output :session init :tangle yes
       def encode_cabin(data):
         cabin_encoder = LabelBinarizer()
         data["Cabin"] = cabin_encoder.fit_transform(data["Cabin"])
         return data
-      transformations.append(encode_cabin)
+      #transformations.append(encode_cabin)
       data = preprocessed_data.copy()
 
       print(data.info())
@@ -368,54 +379,56 @@
 
 ** Apply Transformations
    - apply
-     #+BEGIN_SRC python :results output :session init :tangle yes
+     #+BEGIN_SRC python :cache no
      data = train_data_csv.copy()
-     for transformation in transformations:
-       data = transformation(data)
+     for transform_name in transformations:
+       print("Applying: ", transform_name)
+       data = transformations[transform_name](data)
      preprocessed_data = data
      print(preprocessed_data.info())
      #+END_SRC
 
      #+RESULTS:
      #+begin_example
+     Applying:  remove columns
+     Applying:  encode sex
+     Applying:  Add missing fare
+     Applying:  add missing age
      <class 'pandas.core.frame.DataFrame'>
      RangeIndex: 891 entries, 0 to 890
-     Data columns (total 8 columns):
+     Data columns (total 5 columns):
      Survived    891 non-null int64
      Pclass      891 non-null int64
      Sex         891 non-null int64
      Age         891 non-null float64
-     SibSp       891 non-null int64
-     Parch       891 non-null int64
      Fare        891 non-null float64
-     Cabin       891 non-null int64
-     dtypes: float64(2), int64(6)
-     memory usage: 55.8 KB
+     dtypes: float64(2), int64(3)
+     memory usage: 34.9 KB
      None
      #+end_example
 
    - Peek
-     #+BEGIN_SRC python :results output :session init :tangle yes
+     #+BEGIN_SRC python
      preprocessed_data = data
      print(preprocessed_data.head())
      #+END_SRC
 
-     #+RESULTS:
-     : Survived  Pclass  Sex   Age  SibSp  Parch     Fare  Cabin
-     : 0         0       3    1  22.0      1      0   7.2500      0
-     : 1         1       1    0  38.0      1      0  71.2833      0
-     : 2         1       3    0  26.0      0      0   7.9250      0
-     : 3         1       1    0  35.0      1      0  53.1000      0
-     : 4         0       3    1  35.0      0      0   8.0500      0
+     #+RESULTS[d7a0ca6f87a1bde84e68cd690258b5c850e09682]:
+     : Survived  Pclass  Sex   Age     Fare
+     : 0         0       3    1  22.0   7.2500
+     : 1         1       1    0  38.0  71.2833
+     : 2         1       3    0  26.0   7.9250
+     : 3         1       1    0  35.0  53.1000
+     : 4         0       3    1  35.0   8.0500
 
 * Correlations
   - since original data is not huge, do on all
-    #+BEGIN_SRC python :results output :session init :tangle yes
+    #+BEGIN_SRC python
     corr_matrix = train_data_csv.corr()
     print(corr_matrix["Survived"].sort_values(ascending=False))
     #+END_SRC
 
-    #+RESULTS:
+    #+RESULTS[ca72d8cf875f224cf0ff59f87856f0d9068a8aa6]:
     : Survived       1.000000
     : Fare           0.257307
     : Parch          0.081629
@@ -426,17 +439,14 @@
     : Name: Survived, dtype: float64
 
   - on preprocessed data:
-    #+BEGIN_SRC python :results output :session init :tangle yes
+    #+BEGIN_SRC python
     pre_corr_matrix = preprocessed_data.corr()
     print(pre_corr_matrix["Survived"].sort_values(ascending=False))
     #+END_SRC
 
-    #+RESULTS:
+    #+RESULTS[25aa02360e2ff73499dc54eeddf1d86d0442f9a0]:
     : Survived    1.000000
     : Fare        0.257307
-    : Parch       0.081629
-    : Cabin       0.022287
-    : SibSp      -0.035322
     : Age        -0.064910
     : Pclass     -0.338481
     : Sex        -0.543351
@@ -444,16 +454,15 @@
 
 * Train
 ** Load Test Data
-   #+BEGIN_SRC python :results output :session init :tangle yes
+   #+BEGIN_SRC python :cache no
    test_data_csv = pd.read_csv(os.path.join(LOCAL_DATA_PATH, "test.csv"))
    test_label = pd.read_csv(os.path.join(LOCAL_DATA_PATH, "gender_submission.csv"))
    test_data = test_data_csv.copy()
 
-   for transformation in transformations:
-     test_data = transformation(test_data)
+   for transform_name in transformations:
+     test_data = transformations[transform_name](test_data)
    test_label = test_label.drop("PassengerId", axis=1)
 
-   print(transformations)
    print(test_data.head())
    print(test_label.head())
    print(test_data.info())
@@ -461,13 +470,12 @@
 
    #+RESULTS:
    #+begin_example
-   [<function remove_columns at 0x10d6b6510>, <function add_missing_cabin at 0x11f7c4a60>, <function add_missing_age at 0x11f8b1510>, <function cabin_code at 0x11f8b1400>, <function encode_sex at 0x11f8b1598>, <function encode_cabin at 0x11f8b16a8>, <function add_missing_fare at 0x11fc1fc80>]
-      Pclass  Sex   Age  SibSp  Parch     Fare  Cabin
-   0       3    1  34.5      0      0   7.8292      0
-   1       3    0  47.0      1      0   7.0000      0
-   2       2    1  62.0      0      0   9.6875      0
-   3       3    1  27.0      0      0   8.6625      0
-   4       3    0  22.0      1      1  12.2875      0
+   Pclass  Sex   Age     Fare
+   0       3    1  34.5   7.8292
+   1       3    0  47.0   7.0000
+   2       2    1  62.0   9.6875
+   3       3    1  27.0   8.6625
+   4       3    0  22.0  12.2875
       Survived
    0         0
    1         1
@@ -476,21 +484,18 @@
    4         1
    <class 'pandas.core.frame.DataFrame'>
    RangeIndex: 418 entries, 0 to 417
-   Data columns (total 7 columns):
+   Data columns (total 4 columns):
    Pclass    418 non-null int64
    Sex       418 non-null int64
    Age       418 non-null float64
-   SibSp     418 non-null int64
-   Parch     418 non-null int64
    Fare      418 non-null float64
-   Cabin     418 non-null int64
-   dtypes: float64(2), int64(5)
-   memory usage: 22.9 KB
+   dtypes: float64(2), int64(2)
+   memory usage: 13.1 KB
    None
    #+end_example
 
 ** Create Sets
-    #+BEGIN_SRC python :results output :session init :tangle yes
+    #+BEGIN_SRC python :cache no
     survived_label = preprocessed_data["Survived"].copy()
     feature_list = preprocessed_data.drop("Survived", axis=1)
     print(survived_label.head(3))
@@ -502,14 +507,14 @@
     : 1    1
     : 2    1
     : Name: Survived, dtype: int64
-    :    Pclass  Sex   Age  SibSp  Parch     Fare  Cabin
-    : 0       3    1  22.0      1      0   7.2500      0
-    : 1       1    0  38.0      1      0  71.2833      0
-    : 2       3    0  26.0      0      0   7.9250      0
+    :    Pclass  Sex   Age     Fare
+    : 0       3    1  22.0   7.2500
+    : 1       1    0  38.0  71.2833
+    : 2       3    0  26.0   7.9250
 
 ** Decision Tree
    - train
-     #+BEGIN_SRC python :results output :session init :tangle yes
+     #+BEGIN_SRC python :cache no
      from sklearn.tree import DecisionTreeClassifier
 
      decision_tree_clf = DecisionTreeClassifier()
@@ -526,7 +531,7 @@
     :             splitter='best')
 
    - evaluate:
-     #+BEGIN_SRC python :results output :session init :tangle yes
+     #+BEGIN_SRC python :cache no
      from sklearn.metrics import mean_squared_error
      survived_predictions = decision_tree_clf.predict(test_data)
      tree_mse = mean_squared_error(test_label, survived_predictions)
@@ -534,12 +539,12 @@
      print(tree_rmse)
      #+END_SRC
 
-     #+RESULTS:
-     : 0.42358687104367876
+     #+RESULTS[b01ee0e8645b446a9e28fa885eb724a23f11c09f]:
+     : 0.4665869150354483
 
 * Feature Scaling
   - Fare, using standardization because it is less affected by outliers
-    #+BEGIN_SRC python :results output :session init :tangle yes
+    #+BEGIN_SRC python :cache no
     scaler = StandardScaler()
     scaled_feature_list = scaler.fit_transform(feature_list)
     scaled_test_data = scaler.fit_transform(test_data)
@@ -562,4 +567,49 @@
     :   return self.partial_fit(X, y)
     : /home/anurag/.local/lib/python3.6/site-packages/sklearn/base.py:462: DataConversionWarning: Data with input dtype int64, float64 were all converted to float64 by StandardScaler.
     :   return self.fit(X, **fit_params).transform(X)
-    : 0.517631706652575
+    : 0.4640161686673095
+
+* SVM
+   #+BEGIN_SRC python :cache no
+   from sklearn.svm import SVC
+
+   svc_clf = SVC(gamma=2)
+   svc_clf.fit(feature_list, survived_label)
+
+   survived_predictions = svc_clf.predict(test_data)
+   svc_mse = mean_squared_error(test_label, survived_predictions)
+   print(np.sqrt(svc_mse))
+   #+END_SRC
+
+   #+RESULTS:
+   : 0.6451883000982985
+
+* Neural Network
+   #+BEGIN_SRC python :cache no
+   from sklearn.neural_network import MLPClassifier
+
+   mlp_clf = MLPClassifier(alpha=5)
+   mlp_clf.fit(feature_list, survived_label)
+
+   survived_predictions = mlp_clf.predict(test_data)
+   svc_mse = mean_squared_error(test_label, survived_predictions)
+   print(np.sqrt(svc_mse))
+   #+END_SRC
+
+   #+RESULTS:
+   : 0.41790088337470505
+
+* Random Forest
+   #+BEGIN_SRC python :cache no
+   from sklearn.ensemble import RandomForestClassifier
+
+   rf_clf = RandomForestClassifier(max_depth=5, n_estimators=10, max_features=4)
+   rf_clf.fit(feature_list, survived_label)
+
+   survived_predictions = rf_clf.predict(test_data)
+   svc_mse = mean_squared_error(test_label, survived_predictions)
+   print(np.sqrt(svc_mse))
+   #+END_SRC
+
+   #+RESULTS:
+   : 0.3492986821875949
